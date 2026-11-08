@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="pl" data-filmy>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Testy zakresów i performance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  /* Jedna przewijana strona jak dokument: dwa kolorowe pasy sekcji, a w nich testy w tym samym układzie: nagłówek, uwagi, film, nagraj. */
+  :root {
+    --bg: #FFFFFF;
+    --bg-alt: #F7F7F5;
+    --navy: #1E2F4F;
+    --navy-tint: #E3E8F1;
+    --copper: #96591C;
+    --copper-tint: #F5E9DB;
+    --yellow: #F4C535;
+    --ink: #141414;
+    --ink-mid: #4F4F4F;
+    --on: #F5F1EA;
+    --on-dim: #E4E1DA;
+    --line: rgba(20,20,20,0.10);
+    --display: 'Syne', 'Helvetica Neue', Helvetica, sans-serif;
+    --body: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--body); font-size: 16px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0 0 auto; z-index: 10;
+    height: env(safe-area-inset-top, 0px); background: var(--bg);
+  }
+  .wrap {
+    max-width: 640px; margin-inline: auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin: 0; text-wrap: balance; }
+  p, ul { margin: 0; padding: 0; }
+  ul { list-style: none; }
+  :focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+
+  .top .wrap { padding-block: 36px 24px; display: grid; gap: 10px; }
+  .top h1 { font-size: clamp(30px, 8vw, 42px); }
+  .top p { color: var(--ink-mid); max-width: 34em; }
+
+  .skok { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .skok .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .skok button {
+    appearance: none; background: none; border: 0; border-bottom: 3px solid var(--navy); cursor: pointer;
+    min-height: 52px; padding: 0 4px; text-align: left; color: var(--navy);
+    font-family: var(--display); font-size: 18px; font-weight: 700;
+  }
+  .skok button[data-do="performance"] { color: var(--copper); border-bottom-color: var(--copper); }
+
+  .sek { --sek: var(--navy); --tint: var(--navy-tint); scroll-margin-top: 54px; }
+  #performance { --sek: var(--copper); --tint: var(--copper-tint); }
+  .band { background: var(--sek); color: var(--on); }
+  .band .wrap { padding-block: 18px; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+  .band h2 { font-size: clamp(26px, 6vw, 32px); }
+  .band span { font-size: 14px; color: var(--on-dim); }
+  .tresc { padding-block: 28px 56px; display: grid; gap: 28px; }
+
+  h3 {
+    justify-self: start; background: var(--tint); color: var(--sek);
+    border-radius: 2px; padding: 3px 8px; font-size: 20px;
+  }
+  .sub h3 { font-size: 16px; }
+  .lead, .sub { display: grid; }
+  .lead { gap: 20px; }
+  .sub { gap: 8px; }
+  .li { display: grid; gap: 6px; }
+  .li li { position: relative; padding-left: 16px; }
+  .li li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 6px; height: 6px; background: var(--sek); }
+  .li b { font-weight: 600; }
+  ol.kroki { margin: 0; padding: 0; list-style: none; counter-reset: k; display: grid; gap: 6px; }
+  ol.kroki li { counter-increment: k; position: relative; padding-left: 24px; }
+  ol.kroki li::before { content: counter(k); position: absolute; left: 0; font-family: var(--display); font-weight: 700; color: var(--sek); }
+
+  .test { display: grid; gap: 12px; padding-top: 28px; border-top: 1px solid var(--line); }
+
+  .filmy { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+  .f { display: grid; gap: 6px; min-width: 0; align-content: start; }
+  .f-n { font-size: 15px; font-weight: 600; }
+  a.film, button.film {
+    display: flex; align-items: center; gap: 14px; min-height: 68px; padding: 12px 14px;
+    background: var(--bg-alt); border: 1px solid var(--line); border-radius: 2px;
+    color: var(--navy); text-decoration: none; font-weight: 600;
+  }
+  button.film { width: 100%; cursor: pointer; font-family: inherit; font-size: inherit; text-align: left; }
+  .film small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-mid); }
+  .play { flex: none; width: 44px; height: 44px; background: var(--navy); border-radius: 2px; position: relative; }
+  .play::after {
+    content: ""; position: absolute; left: 17px; top: 13px;
+    border-left: 14px solid var(--yellow); border-top: 9px solid transparent; border-bottom: 9px solid transparent;
+  }
+  .filmbox { display: grid; gap: 2px; min-width: 0; }
+  .f-yt { display: inline-flex; align-items: center; min-height: 44px; justify-self: start; color: var(--navy); font-size: 14px; font-weight: 500; }
+  iframe.film { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; border: 0; background: var(--bg-alt); border-radius: 2px; }
+  iframe.film.pion { aspect-ratio: 9 / 16; width: min(100%, 240px); justify-self: center; }
+
+  .nagraj { background: var(--tint); border-radius: 2px; padding: 14px 16px; display: grid; gap: 8px; }
+  .n-h { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; }
+  .n-h b { font-family: var(--display); font-size: 18px; color: var(--sek); }
+  .n-h span { font-size: 14px; color: var(--ink-mid); }
+
+  .after { display: grid; gap: 14px; padding-top: 28px; border-top: 1px solid var(--line); }
+  .wzor {
+    margin: 0; padding: 16px; background: var(--bg-alt); border: 1px solid var(--line); border-radius: 2px;
+    font-family: var(--body); font-size: 15px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .kopiuj {
+    appearance: none; min-height: 48px; padding: 0 20px; cursor: pointer; justify-self: start;
+    background: var(--bg); color: var(--copper); border: 1px solid var(--copper); border-radius: 2px;
+    font-family: var(--body); font-size: 15px; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>Testy zakresów i performance</h1>
+    <p>Najpierw zakresy, potem performance. Rób je zawsze tak samo, wtedy wyniki da się porównać.</p>
+  </div>
+</header>
+
+<nav class="skok" aria-label="Sekcje testów">
+  <div class="wrap">
+    <button type="button" data-do="zakresy">Zakresy</button>
+    <button type="button" data-do="performance">Performance</button>
+  </div>
+</nav>
+
+<main>
+  <section class="sek" id="zakresy">
+    <div class="band"><div class="wrap"><h2>Zakresy</h2><span>5 ruchów, 9 nagrań</span></div></div>
+    <div class="tresc wrap">
+      <div class="lead">
+        <div class="sub">
+          <h3>Przygotuj</h3>
+          <ul class="li">
+            <li>Stół, skrzynia albo wysokie łóżko. Stopy nad podłogą.</li>
+            <li>Roller albo piłka (rotacja wewnętrzna biodra).</li>
+            <li>Kijek, np. od szczotki.</li>
+            <li>Statyw albo krzesło z książkami na telefon.</li>
+            <li>Krótkie spodenki, koszulka bez rękawów.</li>
+          </ul>
+        </div>
+        <div class="sub">
+          <h3>Zasady</h3>
+          <ul class="li">
+            <li>Zakresy robisz przed rozgrzewką.</li>
+            <li>Ruch robisz bez pomocy drugiej osoby.</li>
+            <li>Tylny aparat, bez zoomu. Telefon stoi nieruchomo.</li>
+            <li>Na początku nagrania powiedz, co to za test i która strona.</li>
+            <li>Boli? Przerwij i napisz do mnie.</li>
+            <li>Kąt zmierzę z Twojego nagrania.</li>
+          </ul>
+        </div>
+      </div>
+
+      <article class="test">
+        <h3>1. Zakresy biodro</h3>
+        <ul class="li">
+          <li>Siedź prosto.</li>
+          <li>Ruszasz tylko biodrem.</li>
+        </ul>
+        <div class="filmy">
+          <div class="f"><p class="f-n">Rotacja wewnętrzna</p><a class="film" data-yt="a7BXMd17ygg" data-title="Biodro: rotacja wewnętrzna" href="https://www.youtube.com/watch?v=a7BXMd17ygg" target="_blank" rel="noopener"><span class="play" aria-hidden="true"></span><span>Obejrzyj film<small>Otworzy się w YouTube</small></span></a></div>
+          <div class="f"><p class="f-n">Rotacja zewnętrzna</p><a class="film" data-yt="De0Y-4OXFqo" data-title="Biodro: rotacja zewnętrzna" href="https://www.youtube.com/shorts/De0Y-4OXFqo" target="_blank" rel="noopener"><span class="play" aria-hidden="true"></span><span>Obejrzyj film<small>Otworzy się w YouTube</small></span></a></div>
+        </div>
+        <div class="nagraj">
+          <p class="n-h"><b>Nagraj</b><span>4 nagrania: każda rotacja, lewa i prawa noga</span></p>
+          <ul class="li">
+            <li><b>Telefon:</b> na wprost, na wysokości kolan, około 2 m.</li>
+            <li><b>W kadrze:</b> miednica, oba kolana i stopy.</li>
+            <li><b>Zrób:</b> 3 wolne ruchy z krótką przerwą pomiędzy.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="test">
+        <h3>2. Zakresy bark</h3>
+        <ul class="li">
+          <li>Ustaw się jak na filmie.</li>
+          <li>Trzymaj łopatkę w miejscu.</li>
+          <li>Bark nie leci do ucha.</li>
+          <li>Ruszasz tylko barkiem.</li>
+        </ul>
+        <div class="filmy">
+          <div class="f"><p class="f-n">Rotacja wewnętrzna</p><a class="film" data-yt="cpPw8qv-bNo" data-title="Bark: rotacja wewnętrzna" href="https://www.youtube.com/shorts/cpPw8qv-bNo" target="_blank" rel="noopener"><span class="play" aria-hidden="true"></span><span>Obejrzyj film<small>Otworzy się w YouTube</small></span></a></div>
+          <div class="f"><p class="f-n">Rotacja zewnętrzna</p><a class="film" data-yt="Bz0XigbdqB0" data-title="Bark: rotacja zewnętrzna" href="https://www.youtube.com/shorts/Bz0XigbdqB0" target="_blank" rel="noopener"><span class="play" aria-hidden="true"></span><span>Obejrzyj film<small>Otworzy się w YouTube</small></span></a></div>
+        </div>
+        <div class="nagraj">
+          <p class="n-h"><b>Nagraj</b><span>4 nagrania: każda rotacja, lewa i prawa ręka</span></p>
+          <ul class="li">
+            <li><b>Telefon:</b> z boku, w przedłużeniu ramienia, na wysokości łokcia, około 1,5 m.</li>
+            <li><b>W kadrze:</b> łokieć, bark i przedramię. Przedramię rusza się jak wskazówka zegara.</li>
+            <li><b>Zrób:</b> 3 wolne ruchy z krótką przerwą pomiędzy.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="test">
+        <h3>3. Aktywne zgięcia barku z kijkiem</h3>
+        <ul class="li">
+          <li>Ustaw się jak na filmie.</li>
+          <li>Proste łokcie.</li>
+          <li>Ręce w lekki Y.</li>
+          <li>Idziesz na max.</li>
+        </ul>
+        <div class="filmy">
+          <div class="f"><a class="film" data-yt="K0Ze_-rS1sA" data-title="Bark: aktywne zgięcia z kijkiem" href="https://www.youtube.com/shorts/K0Ze_-rS1sA" target="_blank" rel="noopener"><span class="play" aria-hidden="true"></span><span>Obejrzyj film<small>Otworzy się w YouTube</small></span></a></div>
+        </div>
+        <div class="nagraj">
+          <p class="n-h"><b>Nagraj</b><span>1 nagranie: obie ręce razem</span></p>
+          <ul class="li">
+            <li><b>Telefon:</b> z boku, na podłodze, około 2 m.</li>
+            <li><b>W kadrze:</b> ręce, kijek i tułów.</li>
+            <li><b>Zrób:</b> 4–5 razy, 1 sekunda pauzy na górze.</li>
+          </ul>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="sek" id="performance">
+    <div class="band"><div class="wrap"><h2>Performance</h2><span>4 testy, 9 nagrań</span></div></div>
+    <div class="tresc wrap">
+      <div class="lead">
+        <div class="sub">
+          <h3>Przygotuj</h3>
+          <ul class="li">
+            <li>Miarka budowlana.</li>
+            <li>Telefon na statywie albo oparty o coś stabilnego.</li>
+            <li>Równa, nieśliska podłoga.</li>
+          </ul>
+        </div>
+        <div class="sub">
+          <h3>Rozgrzewka</h3>
+          <ol class="kroki">
+            <li>3 minuty lekkiego cardio. Ostatnie 10 sekund szybko.</li>
+            <li>Pogo jumps: 2 serie po 10 skoków.</li>
+            <li>2–3 próbne skoki z każdego testu, do 70–80%. Bez nagrywania.</li>
+          </ol>
+        </div>
+        <div class="sub">
+          <h3>Zasady</h3>
+          <ul class="li">
+            <li><b>3 próby, liczy się najlepsza.</b></li>
+            <li>Około 1 minuty przerwy między próbami.</li>
+            <li>Wynik wciąż rośnie? Zrób kolejną próbę.</li>
+            <li>Każda próba na maksa.</li>
+          </ul>
+        </div>
+      </div>
+
+      <article class="test">
+        <h3>1. CMJ</h3>
+        <ul class="li">
+          <li>Dłonie na biodrach.</li>
+          <li>Szybko w dół i od razu jak najwyżej.</li>
+          <li>Lądujesz na prostych nogach.</li>
+          <li>Nie podciągaj kolan w locie.</li>
+        </ul>
+        <div class="filmy">
+          <div class="f"><a class="film" data-yt="RgdJdh19emU" data-title="CMJ" href="https://www.youtube.com/watch?v=RgdJdh19emU" target="_blank" rel="noopener"><span class="play" aria-hidden="true"></span><span>Obejrzyj film<small>Otworzy się w YouTube</small></span></a></div>
+        </div>
+        <div class="nagraj">
+          <p class="n-h"><b>Nagraj</b><span>3 nagrania: każda próba osobno</span></p>
+          <ul class="li">
+            <li><b>Tryb:</b> slow-motion, 120 albo 240 klatek. Minimum 60.</li>
+            <li><b>Telefon:</b> z boku, na wysokości kolan.</li>
+            <li><b>W kadrze:</b> cała sylwetka i stopy, także w locie.</li>
+            <li><b>Zrób:</b> 3 próby.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="test">
+        <h3>2. Squat Jump</h3>
+        <ul class="li">
+          <li>Dłonie na biodrach.</li>
+          <li>Półprzysiad, około 90° w kolanach.</li>
+          <li>Zatrzymaj się na 3 sekundy.</li>
+          <li>Wyskok bez ugięcia. Zejdziesz niżej, powtarzasz próbę.</li>
+          <li>Lądujesz na prostych nogach.</li>
+        </ul>
+        <div class="filmy">
+          <div class="f"><a class="film" data-yt="qh59UAIEjnQ" data-title="Squat Jump" href="https://www.youtube.com/watch?v=qh59UAIEjnQ" target="_blank" rel="noopener"><span class="play" aria-hidden="true"></span><span>Obejrzyj film<small>Otworzy się w YouTube</small></span></a></div>
+        </div>
+        <div class="nagraj">
+          <p class="n-h"><b>Nagraj</b><span>3 nagrania: każda próba osobno</span></p>
+          <ul class="li">
+            <li><b>Tryb:</b> slow-motion, 120 albo 240 klatek. Minimum 60.</li>
+            <li><b>Telefon:</b> z boku, na wysokości kolan.</li>
+            <li><b>W kadrze:</b> cała sylwetka i stopy, także w locie.</li>
+            <li><b>Zrób:</b> 3 próby.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="test">
+        <h3>3. Broad Jump</h3>
+        <ul class="li">
+          <li>Miarka na podłodze, palce na 0 cm.</li>
+          <li>Skaczesz obunóż jak najdalej.</li>
+          <li>Lądowanie ustane. Krok albo podparcie to powtórka.</li>
+          <li>Mierzysz do pięty bliżej startu.</li>
+        </ul>
+        <div class="filmy">
+          <div class="f"><a class="film" data-yt="crU36flL1Ks" data-title="Broad Jump" href="https://www.youtube.com/watch?v=crU36flL1Ks" target="_blank" rel="noopener"><span class="play" aria-hidden="true"></span><span>Obejrzyj film<small>Otworzy się w YouTube</small></span></a></div>
+        </div>
+        <div class="nagraj">
+          <p class="n-h"><b>Nagraj</b><span>1 nagranie: najlepsza próba</span></p>
+          <ul class="li">
+            <li><b>Telefon:</b> z boku, poziomo, na wysokości kolan.</li>
+            <li><b>W kadrze:</b> linia startu i miejsce lądowania.</li>
+            <li><b>Zrób:</b> 3 próby. Zapisz najlepszy wynik w cm.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="test">
+        <h3>4. Single Leg Broad Jump</h3>
+        <ul class="li">
+          <li>Palce jednej stopy na 0 cm.</li>
+          <li>Wybicie z jednej nogi, lądowanie na obie.</li>
+          <li>Lądowanie ustane. Krok albo podparcie to powtórka.</li>
+          <li>Mierzysz do pięty bliżej startu.</li>
+        </ul>
+        <div class="filmy">
+          <div class="f"><a class="film" data-yt="nyjzHIkQlZM" data-title="Single Leg Broad Jump" href="https://www.youtube.com/watch?v=nyjzHIkQlZM" target="_blank" rel="noopener"><span class="play" aria-hidden="true"></span><span>Obejrzyj film<small>Otworzy się w YouTube</small></span></a></div>
+        </div>
+        <div class="nagraj">
+          <p class="n-h"><b>Nagraj</b><span>2 nagrania: najlepsza próba każdej nogi</span></p>
+          <ul class="li">
+            <li><b>Telefon:</b> z boku, poziomo, na wysokości kolan.</li>
+            <li><b>W kadrze:</b> linia startu i miejsce lądowania.</li>
+            <li><b>Zrób:</b> 3 próby na każdą nogę. Zapisz najlepszy wynik w cm, lewa i prawa.</li>
+          </ul>
+        </div>
+      </article>
+
+      <div class="after">
+        <h3>Po testach</h3>
+        <ul class="li">
+          <li>Filmy wysyłaj na WhatsApp jako Dokument: plus albo spinacz, potem Dokument. Nie tracą wtedy jakości.</li>
+          <li>Minimum 18 nagrań: 9 z zakresów, 3 CMJ, 3 Squat Jump, 1 Broad Jump, 2 Single Leg Broad Jump.</li>
+          <li>Na końcu wyślij tę wiadomość z wynikami.</li>
+        </ul>
+        <pre class="wzor" id="wzor">Testy skończone.
+CMJ i SJ nagrane w ___ klatkach.
+Broad Jump: ___ cm
+Single Leg Broad Jump lewa: ___ cm
+Single Leg Broad Jump prawa: ___ cm
+Jak było (zmęczenie, ból, coś nie tak): ___</pre>
+        <button class="kopiuj" type="button" id="kopiuj">Kopiuj wiadomość</button>
+        <p>Nie wiesz, czy dobrze robisz test? Napisz przed testem.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  (function () {
+    document.querySelectorAll('[data-do]').forEach(function (b) {
+      b.addEventListener('click', function () { document.getElementById(b.dataset.do).scrollIntoView(); });
+    });
+
+    // Artefakt blokuje odtwarzacz YouTube, więc domyślnie zostaje link. Wersja hostowana ma <html data-filmy>: film gra na stronie albo otwiera się w YouTube.
+    if (document.documentElement.hasAttribute('data-filmy')) {
+      document.querySelectorAll('a.film').forEach(function (a) {
+        var box = document.createElement('div');
+        box.className = 'filmbox';
+        var on = document.createElement('button');
+        on.type = 'button';
+        on.className = 'film';
+        var play = document.createElement('span');
+        play.className = 'play';
+        play.setAttribute('aria-hidden', 'true');
+        var txt = document.createElement('span');
+        txt.textContent = 'Włącz film';
+        var small = document.createElement('small');
+        small.textContent = 'Zagra tutaj, na stronie';
+        txt.appendChild(small);
+        on.append(play, txt);
+        var yt = document.createElement('a');
+        yt.className = 'f-yt';
+        yt.href = a.href;
+        yt.target = '_blank';
+        yt.rel = 'noopener';
+        yt.textContent = 'Otwórz w YouTube';
+        a.replaceWith(box);
+        box.append(on, yt);
+        on.addEventListener('click', function () {
+          var f = document.createElement('iframe');
+          f.className = a.href.indexOf('/shorts/') > -1 ? 'film pion' : 'film';
+          f.src = 'https://www.youtube-nocookie.com/embed/' + a.dataset.yt + '?rel=0&playsinline=1&autoplay=1';
+          f.title = a.dataset.title;
+          f.allow = 'autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+          f.allowFullscreen = true;
+          f.referrerPolicy = 'strict-origin-when-cross-origin';
+          on.replaceWith(f);
+        });
+      });
+    }
+
+    var btn = document.getElementById('kopiuj');
+    btn.addEventListener('click', function () {
+      var el = document.getElementById('wzor');
+      function zaznacz() {
+        var r = document.createRange();
+        r.selectNodeContents(el);
+        var s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(r);
+        btn.textContent = 'Tekst zaznaczony, skopiuj go';
+      }
+      if (!navigator.clipboard) { zaznacz(); return; }
+      navigator.clipboard.writeText(el.textContent).then(function () { btn.textContent = 'Skopiowano'; }, zaznacz);
+    });
+  })();
+</script>
+</body>
+</html>
