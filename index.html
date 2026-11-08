@@ -91,12 +91,11 @@
   .filmy { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
   .f { display: grid; gap: 6px; min-width: 0; align-content: start; }
   .f-n { font-size: 15px; font-weight: 600; }
-  a.film, button.film {
+  a.film {
     display: flex; align-items: center; gap: 14px; min-height: 68px; padding: 12px 14px;
     background: var(--bg-alt); border: 1px solid var(--line); border-radius: 2px;
     color: var(--navy); text-decoration: none; font-weight: 600;
   }
-  button.film { width: 100%; cursor: pointer; font-family: inherit; font-size: inherit; text-align: left; }
   .film small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-mid); }
   .play { flex: none; width: 44px; height: 44px; background: var(--navy); border-radius: 2px; position: relative; }
   .play::after {
@@ -378,18 +377,14 @@ Jak było (zmęczenie, ból, coś nie tak): ___</pre>
       document.querySelectorAll('a.film').forEach(function (a) {
         var box = document.createElement('div');
         box.className = 'filmbox';
-        var on = document.createElement('button');
-        on.type = 'button';
-        on.className = 'film';
-        var play = document.createElement('span');
-        play.className = 'play';
-        play.setAttribute('aria-hidden', 'true');
-        var txt = document.createElement('span');
-        txt.textContent = 'Włącz film';
-        var small = document.createElement('small');
-        small.textContent = 'Zagra tutaj, na stronie';
-        txt.appendChild(small);
-        on.append(play, txt);
+        var f = document.createElement('iframe');
+        f.className = a.href.indexOf('/shorts/') > -1 ? 'film pion' : 'film';
+        f.loading = 'lazy';
+        f.src = 'https://www.youtube-nocookie.com/embed/' + a.dataset.yt + '?rel=0&playsinline=1';
+        f.title = a.dataset.title;
+        f.allow = 'autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+        f.allowFullscreen = true;
+        f.referrerPolicy = 'strict-origin-when-cross-origin';
         var yt = document.createElement('a');
         yt.className = 'f-yt';
         yt.href = a.href;
@@ -397,17 +392,7 @@ Jak było (zmęczenie, ból, coś nie tak): ___</pre>
         yt.rel = 'noopener';
         yt.textContent = 'Otwórz w YouTube';
         a.replaceWith(box);
-        box.append(on, yt);
-        on.addEventListener('click', function () {
-          var f = document.createElement('iframe');
-          f.className = a.href.indexOf('/shorts/') > -1 ? 'film pion' : 'film';
-          f.src = 'https://www.youtube-nocookie.com/embed/' + a.dataset.yt + '?rel=0&playsinline=1&autoplay=1';
-          f.title = a.dataset.title;
-          f.allow = 'autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen';
-          f.allowFullscreen = true;
-          f.referrerPolicy = 'strict-origin-when-cross-origin';
-          on.replaceWith(f);
-        });
+        box.append(f, yt);
       });
     }
 
