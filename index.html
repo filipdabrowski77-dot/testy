@@ -59,6 +59,7 @@
     font-family: var(--display); font-size: 18px; font-weight: 700;
   }
   .skok button[data-do="performance"] { color: var(--copper); border-bottom-color: var(--copper); }
+  .skok button.poza { color: var(--ink-mid); border-bottom-color: transparent; }
 
   .sek { --sek: var(--navy); --tint: var(--navy-tint); scroll-margin-top: 54px; }
   #performance { --sek: var(--copper); --tint: var(--copper-tint); }
@@ -104,12 +105,12 @@
   .filmbox { display: grid; gap: 2px; min-width: 0; }
   .f-yt { display: inline-flex; align-items: center; min-height: 44px; justify-self: start; color: var(--navy); font-size: 14px; font-weight: 500; }
   iframe.film { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; border: 0; background: var(--bg-alt); border-radius: 2px; }
-  iframe.film.pion { aspect-ratio: 9 / 16; width: min(100%, 240px); justify-self: center; }
+  iframe.film.pion { aspect-ratio: 9 / 16; width: min(100%, 240px); justify-self: start; }
 
   .nagraj { background: var(--tint); border-radius: 2px; padding: 14px 16px; display: grid; gap: 8px; }
-  .n-h { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; }
+  .n-h { display: grid; gap: 2px; }
   .n-h b { font-family: var(--display); font-size: 18px; color: var(--sek); }
-  .n-h span { font-size: 14px; color: var(--ink-mid); }
+  .n-h span { font-size: 15px; font-weight: 600; color: var(--ink); }
 
   .after { display: grid; gap: 14px; padding-top: 28px; border-top: 1px solid var(--line); }
 </style>
@@ -364,6 +365,16 @@
     document.querySelectorAll('[data-do]').forEach(function (b) {
       b.addEventListener('click', function () { document.getElementById(b.dataset.do).scrollIntoView(); });
     });
+
+    // Zakładka sekcji, w której jesteś, zostaje w kolorze; druga szarzeje.
+    var perf = document.getElementById('performance');
+    function gdzie() {
+      var p = perf.getBoundingClientRect().top < 120;
+      document.querySelector('[data-do="zakresy"]').classList.toggle('poza', p);
+      document.querySelector('[data-do="performance"]').classList.toggle('poza', !p);
+    }
+    addEventListener('scroll', gdzie, { passive: true });
+    gdzie();
 
     // Artefakt blokuje odtwarzacz YouTube, więc domyślnie zostaje link. Wersja hostowana ma <html data-filmy>: film gra na stronie albo otwiera się w YouTube.
     if (document.documentElement.hasAttribute('data-filmy')) {
